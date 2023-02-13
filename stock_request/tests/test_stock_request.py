@@ -823,9 +823,15 @@ class TestStockRequestBase(TestStockRequest):
         self.assertEqual(
             stock_request_1.sudo().move_ids.date_deadline, now + relativedelta(days=1)
         )
+        self.assertEqual(
+            stock_request_1.sudo().move_ids.date, now + relativedelta(days=1)
+        )
 
         self.assertEqual(
             stock_request_2.sudo().move_ids.date_deadline, now + relativedelta(days=2)
+        )
+        self.assertEqual(
+            stock_request_2.sudo().move_ids.date, now + relativedelta(days=2)
         )
 
     def test_cancel_request(self):
