@@ -280,6 +280,7 @@ class StockRequest(models.Model):
         """
         return {
             "date_planned": self.expected_date,
+            "date_deadline": self.expected_date,
             "warehouse_id": self.warehouse_id,
             "stock_request_allocation_ids": self.id,
             "group_id": group_id or self.procurement_group_id.id or False,
