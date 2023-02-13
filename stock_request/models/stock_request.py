@@ -15,10 +15,6 @@ class StockRequest(models.Model):
     def _get_default_requested_by(self):
         return self.env["res.users"].browse(self.env.uid)
 
-    @staticmethod
-    def _get_expected_date():
-        return fields.Datetime.now()
-
     name = fields.Char(states={"draft": [("readonly", False)]})
     state = fields.Selection(
         selection=[
@@ -44,6 +40,7 @@ class StockRequest(models.Model):
     expected_date = fields.Datetime(
         "Expected Date",
         index=True,
+        default=lambda self: fields.Datetime.now(),
         required=True,
         readonly=True,
         states={"draft": [("readonly", False)]},
@@ -359,8 +356,6 @@ class StockRequest(models.Model):
         if "order_id" in upd_vals:
             order_id = self.env["stock.request.order"].browse(upd_vals["order_id"])
             upd_vals["expected_date"] = order_id.expected_date
-        else:
-            upd_vals["expected_date"] = self._get_expected_date()
         return super().create(upd_vals)
 
     def unlink(self):
