@@ -1,9 +1,11 @@
 # Copyright 2017 ForgeFlow S.L.
 # Copyright 2022 Tecnativa - Víctor Martínez
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl-3.0).
-
 from collections import Counter
 from datetime import datetime
+
+from dateutil.relativedelta import relativedelta
+from freezegun import freeze_time
 
 from odoo import exceptions, fields
 from odoo.tests import common, new_test_user
@@ -324,7 +326,9 @@ class TestStockRequestBase(TestStockRequest):
                 )
             ],
         }
-        with self.assertRaises(exceptions.ValidationError):
+        with self.assertRaisesRegexp(
+            exceptions.ValidationError, r"Warehouse must be equal to the order"
+        ):
             self.request_order.with_user(self.stock_request_user).create(vals)
 
     def test_stock_request_order_validations_02(self):
@@ -352,7 +356,9 @@ class TestStockRequestBase(TestStockRequest):
                 )
             ],
         }
-        with self.assertRaises(exceptions.ValidationError):
+        with self.assertRaisesRegex(
+            exceptions.ValidationError, "Location must be equal to the order"
+        ):
             self.request_order.with_user(self.stock_request_user).create(vals)
 
     def test_stock_request_order_validations_03(self):
@@ -382,7 +388,9 @@ class TestStockRequestBase(TestStockRequest):
                 )
             ],
         }
-        with self.assertRaises(exceptions.ValidationError):
+        with self.assertRaisesRegex(
+            exceptions.ValidationError, "Requested by must be equal to the order"
+        ):
             self.request_order.with_user(self.stock_request_user).create(vals)
 
     def test_stock_request_order_validations_04(self):
@@ -414,10 +422,42 @@ class TestStockRequestBase(TestStockRequest):
                 )
             ],
         }
-        with self.assertRaises(exceptions.ValidationError):
+        with self.assertRaisesRegex(
+            exceptions.ValidationError, "Procurement group must be equal to the order"
+        ):
             self.request_order.with_user(self.stock_request_user).create(vals)
 
     def test_stock_request_order_validations_05(self):
+        """Testing the discrepancy in company between
+        stock request and order"""
+        expected_date = fields.Datetime.now()
+        vals = {
+            "company_id": self.company_2.id,
+            "warehouse_id": self.wh2.id,
+            "location_id": self.wh2.lot_stock_id.id,
+            "expected_date": expected_date,
+            "stock_request_ids": [
+                (
+                    0,
+                    0,
+                    {
+                        "product_id": self.product.id,
+                        "product_uom_id": self.product.uom_id.id,
+                        "product_uom_qty": 5.0,
+                        "company_id": self.main_company.id,
+                        "warehouse_id": self.warehouse.id,
+                        "location_id": self.warehouse.lot_stock_id.id,
+                        "expected_date": expected_date,
+                    },
+                )
+            ],
+        }
+        with self.assertRaisesRegex(
+            exceptions.ValidationError, "Company must be equal to the order"
+        ):
+            self.request_order.with_user(self.stock_request_user).create(vals)
+
+    def test_stock_request_order_validations_location_from_another_company(self):
         """Testing the discrepancy in company between
         stock request and order"""
         expected_date = fields.Datetime.now()
@@ -442,7 +482,10 @@ class TestStockRequestBase(TestStockRequest):
                 )
             ],
         }
-        with self.assertRaises(exceptions.ValidationError):
+        with self.assertRaisesRegex(
+            exceptions.ValidationError,
+            r"You have entered a location that is assigned to another company\.",
+        ):
             self.request_order.with_user(self.stock_request_user).create(vals)
 
     def test_stock_request_order_validations_06(self):
@@ -451,7 +494,7 @@ class TestStockRequestBase(TestStockRequest):
         expected_date = fields.Datetime.now()
         child_expected_date = "2015-01-01"
         vals = {
-            "company_id": self.company_2.id,
+            "company_id": self.main_company.id,
             "warehouse_id": self.warehouse.id,
             "location_id": self.warehouse.lot_stock_id.id,
             "expected_date": expected_date,
@@ -471,8 +514,48 @@ class TestStockRequestBase(TestStockRequest):
                 )
             ],
         }
-        with self.assertRaises(exceptions.ValidationError):
-            self.request_order.create(vals)
+        order = self.request_order.create(vals)
+        # It won't raise, stock requests are computed from order
+        # date
+        self.assertEqual(order.expected_date, expected_date)
+        self.assertEqual(order.stock_request_ids.expected_date, expected_date)
+
+    def test_create_default_date(self):
+        with freeze_time("2022-06-15 12:24"):
+            stock_request = (
+                self.env["stock.request"]
+                .with_user(self.stock_request_user)
+                .create(
+                    {
+                        "product_id": self.product.id,
+                        "product_uom_id": self.product.uom_id.id,
+                        "product_uom_qty": 4.0,
+                        "company_id": self.main_company.id,
+                        "warehouse_id": self.warehouse.id,
+                        "location_id": self.warehouse.lot_stock_id.id,
+                    }
+                )
+            )
+            self.assertEqual(stock_request.expected_date, fields.Datetime.now())
+
+    def test_create_with_given_date_wont_force_new_date(self):
+        expected_date = fields.Datetime.now() + relativedelta(days=1)
+        stock_request = (
+            self.env["stock.request"]
+            .with_user(self.stock_request_user)
+            .create(
+                {
+                    "product_id": self.product.id,
+                    "product_uom_id": self.product.uom_id.id,
+                    "product_uom_qty": 4.0,
+                    "company_id": self.main_company.id,
+                    "warehouse_id": self.warehouse.id,
+                    "location_id": self.warehouse.lot_stock_id.id,
+                    "expected_date": expected_date,
+                }
+            )
+        )
+        self.assertEqual(stock_request.expected_date, expected_date)
 
     def test_stock_request_order_validations_07(self):
         """Testing the discrepancy in picking policy between
@@ -500,7 +583,10 @@ class TestStockRequestBase(TestStockRequest):
                 )
             ],
         }
-        with self.assertRaises(exceptions.ValidationError):
+        with self.assertRaisesRegex(
+            exceptions.ValidationError,
+            "The picking policy must be equal to the order",
+        ):
             self.request_order.with_user(self.stock_request_user).create(vals)
 
     def test_stock_request_validations_01(self):
@@ -513,7 +599,11 @@ class TestStockRequestBase(TestStockRequest):
             "location_id": self.warehouse.lot_stock_id.id,
         }
         # Select a UoM that is incompatible with the product's UoM
-        with self.assertRaises(exceptions.ValidationError):
+        with self.assertRaisesRegex(
+            exceptions.ValidationError,
+            "You have to select a product unit of measure in the same "
+            "category than the default unit of measure of the product",
+        ):
             self.stock_request.with_user(self.stock_request_user).create(vals)
 
     def test_create_request_01(self):
@@ -682,6 +772,68 @@ class TestStockRequestBase(TestStockRequest):
         self.assertEqual(stock_request_2.qty_cancelled, 6)
         self.assertEqual(stock_request_2.state, "cancel")
 
+    def test_create_request_with_different_dates(self):
+        self.product.route_ids = [(6, 0, self.route.ids)]
+        now = fields.Datetime.now()
+        stock_request_1 = (
+            self.env["stock.request"]
+            .with_user(self.stock_request_user)
+            .create(
+                {
+                    "product_id": self.product.id,
+                    "product_uom_id": self.product.uom_id.id,
+                    "product_uom_qty": 4.0,
+                    "company_id": self.main_company.id,
+                    "warehouse_id": self.warehouse.id,
+                    "location_id": self.warehouse.lot_stock_id.id,
+                    "expected_date": now + relativedelta(days=1),
+                }
+            )
+        )
+        stock_request_2 = (
+            self.env["stock.request"]
+            .with_user(self.stock_request_manager.id)
+            .create(
+                {
+                    "product_id": self.product.id,
+                    "product_uom_id": self.product.uom_id.id,
+                    "product_uom_qty": 6.0,
+                    "company_id": self.main_company.id,
+                    "warehouse_id": self.warehouse.id,
+                    "location_id": self.warehouse.lot_stock_id.id,
+                    "expected_date": now + relativedelta(days=2),
+                }
+            )
+        )
+        self.assertNotEqual(
+            stock_request_1.expected_date,
+            stock_request_2.expected_date,
+        )
+        stock_request_1.sudo().action_confirm()
+        stock_request_2.sudo().action_confirm()
+        # expected 2 moves on the same picking
+        self.assertEqual(
+            stock_request_1.sudo().picking_ids, stock_request_2.sudo().picking_ids
+        )
+        self.assertNotEqual(
+            stock_request_1.sudo().move_ids, stock_request_2.sudo().move_ids
+        )
+        self.assertEqual(len(stock_request_1.sudo().move_ids), 1)
+        self.assertEqual(len(stock_request_1.sudo().picking_ids.move_lines), 2)
+        self.assertEqual(
+            stock_request_1.sudo().move_ids.date_deadline, now + relativedelta(days=1)
+        )
+        self.assertEqual(
+            stock_request_1.sudo().move_ids.date, now + relativedelta(days=1)
+        )
+
+        self.assertEqual(
+            stock_request_2.sudo().move_ids.date_deadline, now + relativedelta(days=2)
+        )
+        self.assertEqual(
+            stock_request_2.sudo().move_ids.date, now + relativedelta(days=2)
+        )
+
     def test_cancel_request(self):
         expected_date = fields.Datetime.now()
         vals = {
@@ -798,7 +950,7 @@ class TestStockRequestBase(TestStockRequest):
         self.assertEqual(action["type"], "ir.actions.act_window")
         self.assertEqual(action["res_id"], stock_request.id)
 
-    def test_stock_request_constrains(self):
+    def test_stock_request_constrains_01_warehouse(self):
         vals = {
             "product_id": self.product.id,
             "product_uom_id": self.product.uom_id.id,
@@ -813,16 +965,61 @@ class TestStockRequestBase(TestStockRequest):
         )
 
         # Cannot assign a warehouse that belongs to another company
-        with self.assertRaises(exceptions.ValidationError):
+        with self.assertRaisesRegex(exceptions.ValidationError, "warehouse"):
             stock_request.warehouse_id = self.wh2
+
+    def test_stock_request_constrains_02_product(self):
+        vals = {
+            "product_id": self.product.id,
+            "product_uom_id": self.product.uom_id.id,
+            "product_uom_qty": 5.0,
+            "company_id": self.main_company.id,
+            "warehouse_id": self.warehouse.id,
+            "location_id": self.warehouse.lot_stock_id.id,
+        }
+
+        stock_request = self.stock_request.with_user(self.stock_request_user).create(
+            vals
+        )
+
         # Cannot assign a product that belongs to another company
-        with self.assertRaises(exceptions.ValidationError):
+        with self.assertRaisesRegex(exceptions.ValidationError, "product"):
             stock_request.product_id = self.product_company_2
+
+    def test_stock_request_constrains_03_location(self):
+        vals = {
+            "product_id": self.product.id,
+            "product_uom_id": self.product.uom_id.id,
+            "product_uom_qty": 5.0,
+            "company_id": self.main_company.id,
+            "warehouse_id": self.warehouse.id,
+            "location_id": self.warehouse.lot_stock_id.id,
+        }
+
+        stock_request = self.stock_request.with_user(self.stock_request_user).create(
+            vals
+        )
+
         # Cannot assign a location that belongs to another company
-        with self.assertRaises(exceptions.ValidationError):
+        with self.assertRaisesRegex(exceptions.ValidationError, "location"):
             stock_request.location_id = self.wh2.lot_stock_id
+
+    def test_stock_request_constrains_04_route(self):
+        vals = {
+            "product_id": self.product.id,
+            "product_uom_id": self.product.uom_id.id,
+            "product_uom_qty": 5.0,
+            "company_id": self.main_company.id,
+            "warehouse_id": self.warehouse.id,
+            "location_id": self.warehouse.lot_stock_id.id,
+        }
+
+        stock_request = self.stock_request.with_user(self.stock_request_user).create(
+            vals
+        )
+
         # Cannot assign a route that belongs to another company
-        with self.assertRaises(exceptions.ValidationError):
+        with self.assertRaisesRegex(exceptions.ValidationError, "route"):
             stock_request.route_id = self.route_2
 
     def test_stock_request_order_from_products(self):
@@ -915,7 +1112,7 @@ class TestStockRequestBase(TestStockRequest):
         )
 
         # Wrong model should just raise ValidationError
-        with self.assertRaises(exceptions.ValidationError):
+        with self.assertRaisesRegexp(exceptions.ValidationError, "e"):
             order._create_from_product_multiselect(self.stock_request_user)
 
     def test_allow_virtual_location(self):
