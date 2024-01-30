@@ -1,1 +1,2 @@
 odoo_test_helper
+odoo14-addon-stock_warehouse_relationship @ git+https://github.com/OCA/stock-logistics-warehouse/pull/1924/head#subdirectory=setup/stock_warehouse_relationship
