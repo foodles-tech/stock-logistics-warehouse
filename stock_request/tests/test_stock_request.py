@@ -251,7 +251,7 @@ class TestStockRequestConstraintsOnWrite(TestStockRequest):
         ):
             self.stock_order.stock_request_ids.write(
                 {
-                    "expected_date!": child_expected_date,
+                    "expected_date": child_expected_date,
                 }
             )
 
