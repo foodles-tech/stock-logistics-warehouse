@@ -118,6 +118,7 @@ class StockResupplyOrder(models.Model):
 
         return self.procurement_group_id
 
+    @api.model
     def _get_available_quantity_for_product(
         self, quant_groups, stock_resupply_order_line
     ):
@@ -139,6 +140,9 @@ class StockResupplyOrder(models.Model):
         """
         Values to pass to the procurement once the order is run.
         """
+
+        self.ensure_one()
+
         return {
             "group_id": self.procurement_group_id,
         }
@@ -148,6 +152,8 @@ class StockResupplyOrder(models.Model):
         Get stock quants at the targeted location. Override if you need to
         apply specific constraints.
         """
+
+        self.ensure_one()
 
         return (
             self.env["stock.quant"]
