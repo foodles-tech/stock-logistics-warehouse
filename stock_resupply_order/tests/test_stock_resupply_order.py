@@ -24,7 +24,7 @@ class TestStockResupplyOrderRun(StockResupplyOrderBaseCase):
             }
         )
 
-        cls.lot = cls.env["stock.production.lot"].create(
+        cls.lot = cls.env["stock.lot"].create(
             {
                 "name": "lot disposable 1",
                 "product_id": cls.product_disposable.id,
@@ -178,13 +178,18 @@ class TestStockResupplyOrderView(StockResupplyOrderBaseCase):
                 "picking_type_id": self.env.ref(
                     "stock_resupply_order.picking_type_demo"
                 ).id,
-                "immediate_transfer": False,
-                "move_lines": [
+                "move_ids": [
                     (
                         0,
                         0,
                         {
                             "name": "DummyMoveLine",
+                            "location_id": self.env.ref(
+                                "stock_resupply_order.location_stock_demo"
+                            ).id,
+                            "location_dest_id": self.env.ref(
+                                "stock_resupply_order.location_dest_demo"
+                            ).id,
                             "product_id": product.id,
                             "product_uom": product.uom_id.id,
                             "product_uom_qty": 1.0,

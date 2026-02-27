@@ -7,7 +7,7 @@
         location into account when creating procurements.
         """,
     "category": "Stock Management",
-    "version": "14.0.1.0.1",
+    "version": "17.0.1.0.0",
     "author": "Foodles, Odoo Community Association (OCA)",
     "website": "https://github.com/OCA/stock-logistics-warehouse",
     "license": "AGPL-3",

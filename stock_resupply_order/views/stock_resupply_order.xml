@@ -26,7 +26,7 @@
                         name="action_run"
                         string="Run"
                         type="object"
-                        attrs="{'invisible': [('state', '!=', 'draft')] }"
+                        invisible="state != 'draft'"
                     />
                 </header>
                 <sheet>
@@ -36,7 +36,7 @@
                             name="action_view_transfers"
                             class="oe_stat_button"
                             icon="fa-truck"
-                            attrs="{'invisible': [('state', '!=', 'done')] }"
+                            invisible="state != 'done'"
                         >
                             <field
                                 name="picking_count"
