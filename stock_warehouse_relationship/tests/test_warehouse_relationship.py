@@ -149,7 +149,7 @@ class TestWarehouseRelationship(TransactionCase):
                     "result_package_id": self.env["stock.quant.package"]
                     .create({"name": f"Dest Pack {picking.warehouse_id.name}"})
                     .id,
-                    "qty_done": 5,
+                    "quantity": 5,
                 }
             )
         pickings.button_validate()
