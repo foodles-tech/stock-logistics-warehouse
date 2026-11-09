@@ -8,7 +8,7 @@
         <field name="name">stock.resupply.order.tree</field>
         <field name="model">stock.resupply.order</field>
         <field name="arch" type="xml">
-            <tree string="Resupply Order">
+            <tree>
                 <field name="location_id" />
                 <field name="state" />
             </tree>
